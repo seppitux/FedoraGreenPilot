@@ -161,6 +161,7 @@ Quand on installe Fedora pour la première fois, certaines choses ne fonctionnen
 
 - 🚀 **Pilote Automatique** : met à jour le système, active RPM Fusion, installe les pilotes graphiques et les codecs en un seul clic
 - **⚠️ Si le Secure Boot est activé, un nouvel écran vous invitera à procéder à l'enrôlement MOK**
+- **🚀 Détect automatiquement la génération du GPU Nvidia et choisi le bon pilote**
 
 - 🎮 **Gestionnaire de Pilotes** : installe/désinstalle les pilotes NVIDIA, Intel, AMD individuellement
 - 🎬 **Logiciels & Codecs** : Chrome, OnlyOffice, LibreOffice, FFmpeg, GStreamer...
