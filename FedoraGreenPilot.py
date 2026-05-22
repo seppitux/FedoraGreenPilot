@@ -1,26 +1,7 @@
-"""
-FedoraGreenPilot - Assistant d'optimisation pour Fedora Linux
-Version : voir APP_VERSION ci-dessous | Auteur : By$ePpi
-
-Architecture du fichier :
-  1.  Imports & configuration du logging
-  2.  Utilitaire : chemin de ressources (AppImage / PyInstaller)
-  3.  Utilitaire : vérification de la connexion Internet
-  4.  Traductions centralisées (FR / EN) et initialisation de T
-  5.  Utilitaires système (infos OS, AppImage desktop)
-  6.  Données : définition des tâches paquets (pilotes, logiciels)
-  7.  Workers QThread (SimpleScriptWorker, AutoPilot, HardwareScan, Refresh, DiskScan)
-  8.  Composants UI : carrousel d'images
-  9.  Dialogues : TerminalDialog, SmartProgressDialog, MokSetupDialog
-  10. Vues principales : HomeWidget, GenericPackageManager, CryptEnrollApp, SecureBootApp
-  11. Fenêtre principale : ModernSidebar, FedoraGreenPilot
-  12. Gestion du thème (detect_dark_mode, apply_theme) et point d'entrée
-"""
-
 # ==========================================
 # VERSION DE L'APPLICATION  ← À MODIFIER ICI
 # ==========================================
-APP_VERSION = "1.0 | 22.05.2026"
+APP_VERSION = "1.1 | 22.05.2026"
 # ==========================================
 
 import sys
@@ -148,7 +129,7 @@ TR = {
         'hw_intel_chip': "🖥️ Puce Intel :",
         'hw_generation': "↳ Génération :",
         'hw_sb_active': "🛡️ Sécurité Secure Boot : <b style='color:#e67e22;'>Active</b><br>",
-        'hw_sb_inactive': "🛡️ Sécurité Secure Boot : <b style='color:#27ae60;'>Désactivée</b><br>",
+        'hw_sb_inactive': "🛡️ Sécurité Secure Boot : <b style='color:#e74c3c;'>Désactivée</b><br>",
         'tpm_group_disks': "Disques LUKS détectés",
         'tpm_col_path': "Chemin", 'tpm_col_type': "Type", 'tpm_col_mount': "Montage", 'tpm_col_label': "Label", 'tpm_col_size': "Taille",
         'tpm_group_options': "Options Avancées TPM",
@@ -163,6 +144,8 @@ TR = {
         'tpm_diag_pin_title': "PIN",
         'tpm_diag_pin_desc': "Nouveau Code PIN :",
         'tpm_diag_config_title': "Configuration LUKS",
+        'tpm_err_sb_title': "Secure Boot inactif",
+        'tpm_err_sb_desc': "Le Secure Boot doit être activé pour enrôler le TPM en mode sécurisé.\nCochez l'option 'Ignorer vérification Secure Boot (PCRs)' si vous souhaitez forcer l'installation.",
         'sb_btn_mok': "Générer une clé MOK (NVIDIA)",
         'sb_btn_akmods': "Forcer la compilation Akmods (akmods --force)",
         'sb_btn_dracut': "Régénérer l'image de démarrage (dracut -v --force)",
@@ -271,7 +254,7 @@ TR = {
         'hw_intel_chip': "🖥️ Intel Chip:",
         'hw_generation': "↳ Generation:",
         'hw_sb_active': "🛡️ Secure Boot Security: <b style='color:#e67e22;'>Active</b><br>",
-        'hw_sb_inactive': "🛡️ Secure Boot Security: <b style='color:#27ae60;'>Disabled</b><br>",
+        'hw_sb_inactive': "🛡️ Secure Boot Security: <b style='color:#e74c3c;'>Disabled</b><br>",
         'tpm_group_disks': "Detected LUKS Disks",
         'tpm_col_path': "Path", 'tpm_col_type': "Type", 'tpm_col_mount': "Mount", 'tpm_col_label': "Label", 'tpm_col_size': "Size",
         'tpm_group_options': "Advanced TPM Options",
@@ -286,6 +269,8 @@ TR = {
         'tpm_diag_pin_title': "PIN",
         'tpm_diag_pin_desc': "New PIN Code:",
         'tpm_diag_config_title': "LUKS Configuration",
+        'tpm_err_sb_title': "Secure Boot disabled",
+        'tpm_err_sb_desc': "Secure Boot must be enabled to enroll the TPM in secure mode.\nCheck the 'Ignore Secure Boot checks (PCRs)' option if you wish to force the installation.",
         'sb_btn_mok': "Generate MOK key (NVIDIA)",
         'sb_btn_akmods': "Force Akmods compilation (akmods --force)",
         'sb_btn_dracut': "Regenerate boot image (dracut -v --force)",
@@ -1418,6 +1403,7 @@ class GenericPackageManager(QWidget):
 class CryptEnrollApp(QWidget):
     def __init__(self):
         super().__init__()
+        self.secure_boot_active = False
         layout = QVBoxLayout(self)
         layout.setContentsMargins(30, 30, 30, 30)
         self.title_lbl = QLabel(T['tpm_title'])
@@ -1465,6 +1451,9 @@ class CryptEnrollApp(QWidget):
         al.addWidget(self.btn_enroll)
         layout.addLayout(al)
 
+    def update_hardware_info(self, hw):
+        self.secure_boot_active = hw.get('secure_boot', False)
+
     def start_disk_scan(self):
         self.disk_tree.clear()
         self.luks_items.clear()
@@ -1498,6 +1487,11 @@ class CryptEnrollApp(QWidget):
     def process_action(self, action="enroll"):
         selected = [i.data(0, Qt.ItemDataRole.UserRole) for i in self.luks_items if i.checkState(0) == Qt.CheckState.Checked]
         if not selected: return
+
+        if action == "enroll" and not self.secure_boot_active and not self.check_no_pcr.isChecked():
+            QMessageBox.warning(self, T['tpm_err_sb_title'], T['tpm_err_sb_desc'])
+            return
+
         pwd, ok = QInputDialog.getText(self, T['tpm_diag_auth_title'], T['tpm_diag_auth_desc'], QLineEdit.EchoMode.Password)
         if not ok or not pwd: return
         pin = None
@@ -1516,7 +1510,7 @@ class CryptEnrollApp(QWidget):
             script.append('if [ "$LUKS_VER" != "2" ]; then cryptsetup convert "' + d + '" --type luks2 -q --key-file="' + p_path + '"; fi')
             cmd = f"systemd-cryptenroll --unlock-key-file={p_path} "
             if self.check_wipe.isChecked() or action == "wipe": cmd += "--wipe-slot=tpm2 "
-            if action == "enroll": cmd += "--tpm2-device=auto " + ("--tpm2-with-pin=yes " if pin else "") + ('--tpm2-pcrs="" ' if self.check_no_pcr.isChecked() else "")
+            if action == "enroll": cmd += "--tpm2-device=auto " + ("--tpm2-with-pin=yes " if pin else "") + ('--tpm2-pcrs="" ' if self.check_no_pcr.isChecked() else '--tpm2-pcrs="7" ')
             script.append(cmd + f' "{d}"')
 
         self.term_dialog = TerminalDialog(T['tpm_diag_config_title'], self)
@@ -1683,6 +1677,7 @@ class FedoraGreenPilot(QMainWindow):
         self.home_w.update_hardware_ui(hw)
         new_drivers_tasks = get_drivers_tasks(hw.get('nvidia_package', 'akmod-nvidia'))
         self.drivers_w.update_tasks(new_drivers_tasks)
+        self.tpm_w.update_hardware_info(hw)
 
     def toggle_expert_mode(self):
         self.expert_mode = not self.expert_mode
