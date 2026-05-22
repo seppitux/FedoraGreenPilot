@@ -70,7 +70,7 @@ For advanced users: MOK key management (required for NVIDIA with Secure Boot ena
 
 | | Required |
 |---|---|
-| OS | Fedora Linux (Workstation) |
+| OS | Fedora Linux (Workstation) 44 |
 | Desktop | GNOME or KDE Plasma |
 | Internet | Required for installations |
 | Rights | Administrator (prompted when needed) |
