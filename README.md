@@ -35,8 +35,11 @@ Runs all operations automatically, in the right order:
 1. Full system update
 2. RPM Fusion repositories activation (third-party software catalog)
 3. Graphics drivers installation adapted to your hardware (NVIDIA / Intel / AMD Radeon)
-4. ⚠️ **If Secure Boot is enabled, a new screen will prompt you for MOK enrollment**
-5. Audio & video codecs installation (MP4, MKV, AVI, MP3...) 
+6. Audio & video codecs installation (MP4, MKV, AVI, MP3...)
+   
+- ⚠️ **If Secure Boot is enabled, a new screen will prompt you for MOK enrollment**
+- 🚀 **The Automatically detects the correct driver version based on your NVIDIA GPU generation**
+  
 
 ### 🎮 Driver Manager
 
@@ -45,6 +48,7 @@ Install or remove graphics drivers individually:
 - **NVIDIA** — proprietary drivers with gaming support
 - **Intel** — hardware acceleration for integrated Intel GPUs
 - **AMD Radeon** — hardware acceleration for AMD GPUs
+  
 
 ### 🎬 Software & Codecs
 
