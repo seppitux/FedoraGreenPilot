@@ -113,7 +113,9 @@ chmod +x build_appimage.sh
 
 ## 🖼️ Screenshots
 
-*Coming soon*
+![Interface principale de Fedora GreenPilot](Screenshot_1.jpg)
+![Auto Secureboot Nvidia](Screenshot_2.jpg)
+![Mode Expert ON](Screenshot_3.jpg)
 
 ---
 
