@@ -42,7 +42,7 @@ Runs all operations automatically, in the right order:
 
 Install or remove graphics drivers individually:
 
-- **NVIDIA** — proprietary drivers with gaming support (32-bit, Gamemode)
+- **NVIDIA** — proprietary drivers with gaming support
 - **Intel** — hardware acceleration for integrated Intel GPUs
 - **AMD Radeon** — hardware acceleration for AMD GPUs
 
