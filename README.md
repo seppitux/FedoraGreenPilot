@@ -35,7 +35,8 @@ Runs all operations automatically, in the right order:
 1. Full system update
 2. RPM Fusion repositories activation (third-party software catalog)
 3. Graphics drivers installation adapted to your hardware (NVIDIA / Intel / AMD Radeon)
-4. Audio & video codecs installation (MP4, MKV, AVI, MP3...)
+4. ⚠️ **If Secure Boot is enabled, a new screen will prompt you for MOK enrollment**
+5. Audio & video codecs installation (MP4, MKV, AVI, MP3...) 
 
 ### 🎮 Driver Manager
 
@@ -155,6 +156,8 @@ Quand on installe Fedora pour la première fois, certaines choses ne fonctionnen
 ### Ce que fait l'application
 
 - 🚀 **Pilote Automatique** : met à jour le système, active RPM Fusion, installe les pilotes graphiques et les codecs en un seul clic
+- **⚠️ Si le Secure Boot est activé, un nouvel écran vous invitera à procéder à l'enrôlement MOK**
+
 - 🎮 **Gestionnaire de Pilotes** : installe/désinstalle les pilotes NVIDIA, Intel, AMD individuellement
 - 🎬 **Logiciels & Codecs** : Chrome, OnlyOffice, LibreOffice, FFmpeg, GStreamer...
 - 🔐 **Déverrouillage TPM2** : plus besoin de taper votre mot de passe LUKS au démarrage
