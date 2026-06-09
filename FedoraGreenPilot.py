@@ -1,7 +1,7 @@
 # ==========================================
 # VERSION DE L'APPLICATION  ← À MODIFIER ICI
 # ==========================================
-APP_VERSION = "1.1 | 22.05.2026"
+APP_VERSION = "1.2.1 | 09.06.2026"
 # ==========================================
 
 import sys
@@ -99,7 +99,7 @@ TR = {
         'desc_radeon': "Accélération matérielle pour IGP /GPU AMD Radeon.",
         'hw_radeon_card': "🔴 Carte Radeon :",
         'task_codecs': "Codecs Multimédias",
-        'desc_codecs': "FFmpeg, GStreamer, support complet audio/vidéo.",
+        'desc_codecs': "FFmpeg, GStreamer, support HEIC, support complet audio/vidéo.",
         'task_chrome': "Google Chrome",
         'desc_chrome': "Navigateur web de Google.",
         'task_onlyoffice': "OnlyOffice",
@@ -224,7 +224,7 @@ TR = {
         'desc_radeon': "Hardware acceleration for for AMD Radeon IGP /GPU.",
         'hw_radeon_card': "🔴 Radeon Card:",
         'task_codecs': "Multimedia Codecs",
-        'desc_codecs': "FFmpeg, GStreamer, full audio/video support.",
+        'desc_codecs': "FFmpeg, GStreamer, HEIC support, full audio/video support.",
         'task_chrome': "Google Chrome",
         'desc_chrome': "Google's web browser.",
         'task_onlyoffice': "OnlyOffice",
@@ -402,10 +402,12 @@ def get_drivers_tasks(nvidia_pkg="akmod-nvidia"):
 
 def get_softs_tasks():
     return {
-        T['task_codecs']: {"type": "dnf", "packages": ["ffmpeg", "libavcodec-freeworld", "gstreamer1-plugin-libav", "gstreamer1-plugins-bad-freeworld"], "desc_key": "desc_codecs"},
+        # Ajout de libheif-freeworld pour le support HEIC
+        T['task_codecs']: {"type": "dnf", "packages": ["ffmpeg", "libavcodec-freeworld", "gstreamer1-plugin-libav", "gstreamer1-plugins-bad-freeworld", "libheif-freeworld"], "desc_key": "desc_codecs"},
         T['task_chrome']: {"type": "chrome", "packages": ["google-chrome-stable"], "desc_key": "desc_chrome"},
         T['task_onlyoffice']: {"type": "onlyoffice", "packages": ["onlyoffice-desktopeditors"], "desc_key": "desc_onlyoffice"},
-        T['task_libreoffice']: {"type": "dnf", "packages": ["libreoffice"], "desc_key": "desc_libreoffice"},
+        # Changement du type vers libreoffice pour cibler libreoffice-core afin de garantir la suppression complète
+        T['task_libreoffice']: {"type": "libreoffice", "packages": ["libreoffice", "libreoffice-core"], "desc_key": "desc_libreoffice"},
         T['task_kdepim']: {"type": "dnf", "packages": ["kdepim-runtime", "kmail", "kontact", "korganizer", "kaddressbook", "akregator"], "desc_key": "desc_kdepim"}
     }
 
@@ -478,17 +480,21 @@ class AutoPilotSingleScriptWorker(QThread):
         script.append(f"echo '---AUTOPILOT_STEP---:{T['autopilot_step_gpu']}'")
         if self.hw['has_nvidia'] and not self.skip_nvidia:
             pkgs_nv = " ".join(get_drivers_tasks(self.hw.get('nvidia_package', 'akmod-nvidia'))[T['task_nvidia']]['packages'])
-            script.append(f"dnf5 install -y {pkgs_nv} || dnf install -y {pkgs_nv} || true")
+            # Utilisation de --allowerasing
+            script.append(f"dnf5 install -y --allowerasing {pkgs_nv} || dnf install -y --allowerasing {pkgs_nv} || true")
         if self.hw['has_intel']:
             pkgs_intel = " ".join(get_drivers_tasks()[T['task_intel']]['packages'])
-            script.append(f"dnf5 install -y {pkgs_intel} || dnf install -y {pkgs_intel} || true")
+            # Utilisation de --allowerasing
+            script.append(f"dnf5 install -y --allowerasing {pkgs_intel} || dnf install -y --allowerasing {pkgs_intel} || true")
         if self.hw.get('has_radeon'):
             pkgs_rad = " ".join(get_drivers_tasks()[T['task_radeon']]['packages'])
-            script.append(f"dnf5 install -y {pkgs_rad} || dnf install -y {pkgs_rad} || true")
+            # Utilisation de --allowerasing
+            script.append(f"dnf5 install -y --allowerasing {pkgs_rad} || dnf install -y --allowerasing {pkgs_rad} || true")
 
         script.append(f"echo '---AUTOPILOT_STEP---:{T['autopilot_step_codecs']}'")
         pkgs_codecs = " ".join(get_softs_tasks()[T['task_codecs']]['packages'])
-        script.append(f"dnf5 install -y {pkgs_codecs} || dnf install -y {pkgs_codecs} || true")
+        # Utilisation de --allowerasing
+        script.append(f"dnf5 install -y --allowerasing {pkgs_codecs} || dnf install -y --allowerasing {pkgs_codecs} || true")
 
         path = None
         try:
@@ -630,9 +636,12 @@ class FedoraRefreshWorker(QThread):
             is_installed = self.check_is_installed(info.get("packages", []), info.get("type", "dnf"))
             self.status_signal.emit(name, is_installed)
         self.finished_signal.emit()
+
     def check_is_installed(self, packages, ptype):
         try:
             if ptype == "chrome": return subprocess.run(["rpm", "-q", "google-chrome-stable"], capture_output=True).returncode == 0
+            # LibreOffice : cibler libreoffice-core qui est toujours installé si la suite est présente
+            if ptype == "libreoffice": return subprocess.run(["rpm", "-q", "libreoffice-core"], capture_output=True).returncode == 0
             if not packages: return False
             for pkg in packages:
                 if subprocess.run(["rpm", "-q", pkg], capture_output=True).returncode != 0: return False
@@ -1351,20 +1360,19 @@ class GenericPackageManager(QWidget):
                 script.append(f"dnf5 install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{ver}.noarch.rpm https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{ver}.noarch.rpm || dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{ver}.noarch.rpm https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{ver}.noarch.rpm")
             elif info["type"] == "chrome":
                 script.append("dnf5 install -y fedora-workstation-repositories || dnf install -y fedora-workstation-repositories\ndnf5 config-manager setopt google-chrome.enabled=1 || dnf config-manager --set-enabled google-chrome || true")
-                script.append(f"dnf5 install -y {pkgs} || dnf install -y {pkgs}")
+                script.append(f"dnf5 install -y --allowerasing {pkgs} || dnf install -y --allowerasing {pkgs}")
             elif info["type"] == "onlyoffice":
                 script.append("dnf5 install -y https://download.onlyoffice.com/repo/centos/main/noarch/onlyoffice-repo.noarch.rpm || dnf install -y https://download.onlyoffice.com/repo/centos/main/noarch/onlyoffice-repo.noarch.rpm")
-                script.append(f"dnf5 install -y {pkgs} || dnf install -y {pkgs}")
+                script.append(f"dnf5 install -y --allowerasing {pkgs} || dnf install -y --allowerasing {pkgs}")
             elif info["type"] == "radeon":
-                # Vérifier/installer RPM Fusion (nécessaire pour mesa-*-freeworld)
                 ver = subprocess.run(["rpm", "-E", "%fedora"], capture_output=True, text=True).stdout.strip()
                 script.append(f"rpm -q rpmfusion-free-release || (dnf5 install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{ver}.noarch.rpm || dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{ver}.noarch.rpm)")
                 script.append(f"rpm -q rpmfusion-nonfree-release || (dnf5 install -y https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{ver}.noarch.rpm || dnf install -y https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{ver}.noarch.rpm)")
-                # Mise à jour dnf pour prendre en compte les nouveaux dépôts
                 script.append("dnf5 upgrade -y --refresh || dnf upgrade -y --refresh")
-                script.append(f"dnf5 install -y {pkgs} || dnf install -y {pkgs}")
+                script.append(f"dnf5 install -y --allowerasing {pkgs} || dnf install -y --allowerasing {pkgs}")
             else:
-                script.append(f"dnf5 install -y {pkgs} || dnf install -y {pkgs}")
+                # Ajout de --allowerasing pour toutes les autres installations standards
+                script.append(f"dnf5 install -y --allowerasing {pkgs} || dnf install -y --allowerasing {pkgs}")
         else:
             safe_to_remove = set(info.get("packages", []))
 
